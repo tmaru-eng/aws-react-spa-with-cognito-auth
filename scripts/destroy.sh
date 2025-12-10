@@ -30,8 +30,16 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # ルートの .env を読み込んで CDK/CLI へ共有
 if [[ -f "$ROOT_DIR/.env" ]]; then
   echo "Loading shared environment from .env"
-  # shellcheck disable=SC2046
-  export $(grep -v '^#' "$ROOT_DIR/.env" | xargs) || true
+  while IFS='=' read -r key value; do
+    # Skip empty lines and comments
+    [[ -z "$key" || "$key" =~ ^# ]] && continue
+    # Remove surrounding quotes if present
+    value="${value%\"}"
+    value="${value#\"}"
+    value="${value%\'}"
+    value="${value#\'}"
+    export "$key=$value"
+  done < "$ROOT_DIR/.env"
 fi
 
 if [[ -z "$REGION_VALUE" ]]; then

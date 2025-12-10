@@ -74,7 +74,7 @@ git clone <this-repo>
    `npm install`
 2. 環境変数を設定  
    - `cp .env.template .env.local`  
-   - `.env.local` の `REACT_APP_COGNITO_USER_POOL_ID` / `REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID` / `REACT_APP_API_ENDPOINT` を手順 3 の値に置き換え（API は `apiEndpoint` 出力をそのまま利用可。末尾スラッシュはビルド時に自動除去）
+   - `.env.local` の `REACT_APP_COGNITO_USER_POOL_ID` / `REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID` / `REACT_APP_API_ENDPOINT` を「手順 2 でデプロイしたバックエンドの出力」に置き換え（API は `apiEndpoint` 出力をそのまま利用可。末尾スラッシュはビルド時に自動除去）
    - `REACT_APP_ENABLE_SELF_SIGNUP` を `.env` の `SELF_SIGN_UP_ENABLED` と合わせると UI のサインアップ表示も一致します
    - `REACT_APP_STAGE` / `REACT_APP_SYSTEM_NAME` も `.env` に合わせて設定可
 3. ビルド  
