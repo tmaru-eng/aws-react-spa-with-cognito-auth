@@ -1,32 +1,30 @@
-import * as cdk from "@aws-cdk/core";
-import * as ssm from "@aws-cdk/aws-ssm";
-import * as waf from "@aws-cdk/aws-wafv2";
+import { Stack, StackProps, aws_ssm as ssm, aws_wafv2 as waf } from "aws-cdk-lib";
+import { Construct } from "constructs";
 
-export class WebAclStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props: cdk.StackProps) {
+export class WebAclStack extends Stack {
+  constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
-    const ipRanges: string[] = scope.node.tryGetContext(
-      "allowedIpAddressRanges"
-    );
+    const ipRanges: string[] =
+      scope.node.tryGetContext("allowedIpAddressRanges") || [];
 
-    const ipRangesV6: string[] = scope.node.tryGetContext(
-      "allowedIpAddressRangesV6"
-    );
+    const ipRangesV6: string[] =
+      scope.node.tryGetContext("allowedIpAddressRangesV6") || [];
 
-    const wafIPSet4 = new waf.CfnIPSet(this, `IPSet4`, {
+    const wafIPSet4 = new waf.CfnIPSet(this, "IPSet4", {
       name: "FrontendWebAclIpSet4",
       ipAddressVersion: "IPV4",
       scope: "CLOUDFRONT",
       addresses: ipRanges,
     });
 
-    const wafIPSet6 = new waf.CfnIPSet(this, `IPSet6`, {
+    const wafIPSet6 = new waf.CfnIPSet(this, "IPSet6", {
       name: "FrontendWebAclIpSet6",
       ipAddressVersion: "IPV6",
       scope: "CLOUDFRONT",
       addresses: ipRangesV6,
     });
 
+    // CloudFront 用の WAF。IPv4/IPv6 と AWS Managed Rule を組み合わせる
     const frontendWaf = new waf.CfnWebACL(this, "waf", {
       defaultAction: { block: {} },
       scope: "CLOUDFRONT",
@@ -85,6 +83,7 @@ export class WebAclStack extends cdk.Stack {
       ],
     });
 
+    // CloudFront から参照しやすいように WAF ARN を SSM へ保存
     new ssm.StringParameter(this, "WebAclArnParameter", {
       parameterName: "WebAclArnParameter",
       stringValue: frontendWaf.attrArn,
