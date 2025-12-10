@@ -54,11 +54,14 @@ git clone <this-repo>
 
 ### 2. バックエンドをデプロイ
 
-1. `backend` ディレクトリで依存関係をインストール  
+1. ルートで環境変数を設定  
+   - `cp .env.template .env`  
+   - `SYSTEM_NAME`, `STAGE`, `BACKEND_REGION`, `SELF_SIGN_UP_ENABLED` などを必要に応じて変更
+2. `backend` ディレクトリで依存関係をインストール  
    `npm install`
-2. CDK でスタックをデプロイ  
+3. CDK でスタックをデプロイ  
    `cdk deploy --all`
-3. デプロイ完了後に出力される以下をメモ  
+4. デプロイ完了後に出力される以下をメモ  
    - `CognitoUserPoolId`
    - `CognitoUserPoolWebClientId`
    - API エンドポイント
@@ -71,7 +74,9 @@ git clone <this-repo>
    `npm install`
 2. 環境変数を設定  
    - `cp .env.template .env.local`  
-   - `.env.local` の `REACT_APP_COGNITO_USER_POOL_ID` / `REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID` / `REACT_APP_API_ENDPOINT` を手順 2 で得た値に置き換え（API は `apiEndpoint` 出力をそのまま利用可。末尾スラッシュはビルド時に自動除去）
+   - `.env.local` の `REACT_APP_COGNITO_USER_POOL_ID` / `REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID` / `REACT_APP_API_ENDPOINT` を「手順 2 でデプロイしたバックエンドの出力」に置き換え（API は `apiEndpoint` 出力をそのまま利用可。末尾スラッシュはビルド時に自動除去）
+   - `REACT_APP_ENABLE_SELF_SIGNUP` を `.env` の `SELF_SIGN_UP_ENABLED` と合わせると UI のサインアップ表示も一致します
+   - `REACT_APP_STAGE` / `REACT_APP_SYSTEM_NAME` も `.env` に合わせて設定可
 3. ビルド  
    `npm run build`
 

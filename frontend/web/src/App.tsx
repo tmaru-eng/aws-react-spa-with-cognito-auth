@@ -8,7 +8,7 @@ import { Authenticator, Heading, Text } from "@aws-amplify/ui-react";
 import { translations } from "@aws-amplify/ui";
 import "@aws-amplify/ui-react/styles.css";
 import { getTime } from "./api";
-import { apiEndpoint, cognitoConfig } from "./config";
+import { apiEndpoint, cognitoConfig, enableSelfSignUp } from "./config";
 
 // Amplify UI の文言を日本語に寄せる
 I18n.putVocabularies(translations);
@@ -98,7 +98,7 @@ const SignedInView: React.FC<SignedInViewProps> = ({ username, signOut }) => {
 };
 
 const App: React.FC = () => (
-  <Authenticator>
+  <Authenticator hideSignUp={!enableSelfSignUp}>
     {({ signOut, user }) => (
       <SignedInView username={user?.username} signOut={signOut} />
     )}

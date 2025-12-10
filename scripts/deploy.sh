@@ -7,6 +7,7 @@ PROFILE_ARG=""
 REGION_ARG=""
 REGION_VALUE=""
 ENV_FILE="../frontend/web/.env.local"
+STACK_PREFIX=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,11 +35,29 @@ done
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# ルートの .env を読み込んで共通設定を環境変数へ
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  echo "Loading shared environment from .env"
+  while IFS='=' read -r key value; do
+    # Skip empty lines and comments
+    [[ -z "$key" || "$key" =~ ^# ]] && continue
+    # Remove surrounding quotes if present
+    value="${value%\"}"
+    value="${value#\"}"
+    value="${value%\'}"
+    value="${value#\'}"
+    export "$key=$value"
+  done < "$ROOT_DIR/.env"
+fi
+
 # リージョンは引数優先、なければ環境変数を参照、無ければ ap-northeast-1 を既定とする
 if [[ -z "$REGION_VALUE" ]]; then
-  REGION_VALUE="${AWS_REGION:-${AWS_DEFAULT_REGION:-ap-northeast-1}}"
+  REGION_VALUE="${BACKEND_REGION:-${AWS_REGION:-${AWS_DEFAULT_REGION:-ap-northeast-1}}}"
   REGION_ARG="--region $REGION_VALUE"
 fi
+
+# スタック名のプレフィクス
+STACK_PREFIX="${SYSTEM_NAME:-demo}-${STAGE:-dev}"
 
 echo "Using env file: $ENV_FILE"
 echo "Using region: $REGION_VALUE"
@@ -55,8 +74,11 @@ fi
 cdk deploy --all --require-approval never $PROFILE_ARG $REGION_ARG
 
 echo "== Fetching outputs =="
-AUTH_STACK_JSON=$(aws cloudformation describe-stacks --stack-name AuthStack $PROFILE_ARG $REGION_ARG)
-API_STACK_JSON=$(aws cloudformation describe-stacks --stack-name APIStack $PROFILE_ARG $REGION_ARG)
+AUTH_STACK_NAME="${STACK_PREFIX}-AuthStack"
+API_STACK_NAME="${STACK_PREFIX}-APIStack"
+
+AUTH_STACK_JSON=$(aws cloudformation describe-stacks --stack-name "$AUTH_STACK_NAME" $PROFILE_ARG $REGION_ARG)
+API_STACK_JSON=$(aws cloudformation describe-stacks --stack-name "$API_STACK_NAME" $PROFILE_ARG $REGION_ARG)
 
 USER_POOL_ID=$(echo "$AUTH_STACK_JSON" | jq -r '.Stacks[0].Outputs[] | select(.OutputKey=="CognitoUserPoolId") | .OutputValue')
 USER_POOL_CLIENT_ID=$(echo "$AUTH_STACK_JSON" | jq -r '.Stacks[0].Outputs[] | select(.OutputKey=="CognitoUserPoolWebClientId") | .OutputValue')
@@ -73,6 +95,9 @@ REACT_APP_COGNITO_REGION=${REGION_VALUE}
 REACT_APP_COGNITO_USER_POOL_ID=${USER_POOL_ID}
 REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID=${USER_POOL_CLIENT_ID}
 REACT_APP_API_ENDPOINT=${API_ENDPOINT}
+REACT_APP_ENABLE_SELF_SIGNUP=${SELF_SIGN_UP_ENABLED:-false}
+REACT_APP_STAGE=${STAGE:-dev}
+REACT_APP_SYSTEM_NAME=${SYSTEM_NAME:-demo}
 EOF
 echo "Updated $ENV_FILE"
 

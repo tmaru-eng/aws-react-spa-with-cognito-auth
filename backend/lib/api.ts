@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from "aws-cdk-lib";
+import { Duration, Stack, StackProps, CfnOutput } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -6,10 +6,11 @@ import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as waf from "aws-cdk-lib/aws-wafv2";
 import * as agw from "aws-cdk-lib/aws-apigateway";
 import * as path from "path";
-import { CfnOutput } from "aws-cdk-lib";
 
 interface APIStackProps extends StackProps {
   userPool: cognito.UserPool;
+  namePrefix: string;
+  allowedIpRanges: string[];
 }
 
 export class APIStack extends Stack {
@@ -21,26 +22,31 @@ export class APIStack extends Stack {
     });
 
     // Lambda（Node.js 20 + ESBuild バンドル）で現在時刻を返す
-    const getTimeFunction = new lambdaNodejs.NodejsFunction(this, "getTime", {
-      handler: "handler",
-      runtime: lambda.Runtime.NODEJS_20_X,
-      timeout: Duration.seconds(30),
-      memorySize: 512,
-      entry: path.join(__dirname, "../lambda/time/get.ts"),
-    });
+    const getTimeFunction = new lambdaNodejs.NodejsFunction(
+      this,
+      "getTime",
+      {
+        handler: "handler",
+        runtime: lambda.Runtime.NODEJS_20_X,
+        timeout: Duration.seconds(30),
+        memorySize: 512,
+        entry: path.join(__dirname, "../lambda/time/get.ts"),
+        functionName: `${props.namePrefix}-getTime`,
+      }
+    );
 
     // アクセスを許可する IP レンジをコンテキストから取得
-    const ipRanges: string[] =
-      scope.node.tryGetContext("allowedIpAddressRanges") || [];
+    const ipRanges = props.allowedIpRanges;
 
     const wafIPSet = new waf.CfnIPSet(this, "IPSet", {
-      name: "BackendWebAclIpSet",
+      name: `${props.namePrefix}-BackendWebAclIpSet`,
       ipAddressVersion: "IPV4",
       scope: "REGIONAL",
       addresses: ipRanges,
     });
 
     const apiWaf = new waf.CfnWebACL(this, "waf", {
+      name: `${props.namePrefix}-BackendWAF`,
       defaultAction: { block: {} },
       scope: "REGIONAL",
       visibilityConfig: {
@@ -86,6 +92,7 @@ export class APIStack extends Stack {
 
     // API Gateway を用意し、Cognito 認証 + WAF を適用
     const api = new agw.RestApi(this, "api", {
+      restApiName: `${props.namePrefix}-api`,
       deployOptions: {
         stageName: "api",
       },

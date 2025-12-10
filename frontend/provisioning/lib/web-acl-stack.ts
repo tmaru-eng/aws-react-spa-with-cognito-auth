@@ -1,24 +1,33 @@
-import { Stack, StackProps, aws_ssm as ssm, aws_wafv2 as waf } from "aws-cdk-lib";
+import {
+  Stack,
+  StackProps,
+  aws_ssm as ssm,
+  aws_wafv2 as waf,
+} from "aws-cdk-lib";
 import { Construct } from "constructs";
 
-export class WebAclStack extends Stack {
-  constructor(scope: Construct, id: string, props: StackProps) {
-    super(scope, id, props);
-    const ipRanges: string[] =
-      scope.node.tryGetContext("allowedIpAddressRanges") || [];
+interface WebAclStackProps extends StackProps {
+  namePrefix: string;
+  allowedIpRanges: string[];
+  allowedIpRangesV6: string[];
+  parameterName: string;
+}
 
-    const ipRangesV6: string[] =
-      scope.node.tryGetContext("allowedIpAddressRangesV6") || [];
+export class WebAclStack extends Stack {
+  constructor(scope: Construct, id: string, props: WebAclStackProps) {
+    super(scope, id, props);
+    const ipRanges = props.allowedIpRanges;
+    const ipRangesV6 = props.allowedIpRangesV6;
 
     const wafIPSet4 = new waf.CfnIPSet(this, "IPSet4", {
-      name: "FrontendWebAclIpSet4",
+      name: `${props.namePrefix}-FrontendWebAclIpSet4`,
       ipAddressVersion: "IPV4",
       scope: "CLOUDFRONT",
       addresses: ipRanges,
     });
 
     const wafIPSet6 = new waf.CfnIPSet(this, "IPSet6", {
-      name: "FrontendWebAclIpSet6",
+      name: `${props.namePrefix}-FrontendWebAclIpSet6`,
       ipAddressVersion: "IPV6",
       scope: "CLOUDFRONT",
       addresses: ipRangesV6,
@@ -52,7 +61,7 @@ export class WebAclStack extends Stack {
         },
         {
           priority: 2,
-          name: "FrontendWebAclIpRuleSet",
+          name: `${props.namePrefix}-FrontendWebAclIpRuleSet`,
           action: { allow: {} },
           visibilityConfig: {
             sampledRequestsEnabled: true,
@@ -67,7 +76,7 @@ export class WebAclStack extends Stack {
         },
         {
           priority: 3,
-          name: "FrontendWebAclIpV6RuleSet",
+          name: `${props.namePrefix}-FrontendWebAclIpV6RuleSet`,
           action: { allow: {} },
           visibilityConfig: {
             sampledRequestsEnabled: true,
@@ -85,7 +94,7 @@ export class WebAclStack extends Stack {
 
     // CloudFront から参照しやすいように WAF ARN を SSM へ保存
     new ssm.StringParameter(this, "WebAclArnParameter", {
-      parameterName: "WebAclArnParameter",
+      parameterName: props.parameterName,
       stringValue: frontendWaf.attrArn,
     });
   }

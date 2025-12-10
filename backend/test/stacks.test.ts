@@ -22,7 +22,11 @@ test("APIStack が Cognito 認証付き API を作成する", () => {
   const base = new Stack(app, "Base");
   const userPool = new cognito.UserPool(base, "UserPool");
 
-  const apiStack = new APIStack(app, "ApiStackTest", { userPool });
+  const apiStack = new APIStack(app, "ApiStackTest", {
+    userPool,
+    namePrefix: "test",
+    allowedIpRanges: ["0.0.0.0/0"],
+  });
   const template = Template.fromStack(apiStack);
 
   template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
