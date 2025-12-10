@@ -1,14 +1,14 @@
-# Welcome to your CDK TypeScript project!
+# CDK (Backend) プロジェクト
 
-This is a blank project for TypeScript development with CDK.
+API Gateway / Cognito / Lambda / WAF を構築する CDK v2 + TypeScript のプロジェクトです。
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+`cdk.json` は CDK CLI がアプリを実行する方法を示します。
 
-## Useful commands
+## よく使うコマンド
 
- * `npm run build`   compile typescript to js
- * `npm run watch`   watch for changes and compile
- * `npm run test`    perform the jest unit tests
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk synth`       emits the synthesized CloudFormation template
+- `npm run build` … TypeScript をコンパイル
+- `npm run watch` … 変更を監視してビルド
+- `npm run test` … Jest によるユニットテスト
+- `cdk synth` … CloudFormation テンプレートを生成
+- `cdk diff` … デプロイ済みスタックとの差分を表示
+- `cdk deploy` … スタックをデプロイ

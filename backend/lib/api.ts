@@ -1,37 +1,39 @@
-import * as cdk from "@aws-cdk/core";
-import * as cognito from "@aws-cdk/aws-cognito";
-import * as lambda from "@aws-cdk/aws-lambda";
-import * as lambdaNodejs from "@aws-cdk/aws-lambda-nodejs";
-import * as waf from "@aws-cdk/aws-wafv2";
-import * as agw from "@aws-cdk/aws-apigateway";
+import { Duration, Stack, StackProps } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
+import * as waf from "aws-cdk-lib/aws-wafv2";
+import * as agw from "aws-cdk-lib/aws-apigateway";
+import * as path from "path";
+import { CfnOutput } from "aws-cdk-lib";
 
-interface APIStackProps extends cdk.StackProps {
+interface APIStackProps extends StackProps {
   userPool: cognito.UserPool;
 }
 
-export class APIStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props: APIStackProps) {
+export class APIStack extends Stack {
+  constructor(scope: Construct, id: string, props: APIStackProps) {
     super(scope, id, props);
 
     const authorizer = new agw.CognitoUserPoolsAuthorizer(this, "Authorizer", {
       cognitoUserPools: [props.userPool],
     });
 
-    // Definition of lambda function
+    // Lambda（Node.js 20 + ESBuild バンドル）で現在時刻を返す
     const getTimeFunction = new lambdaNodejs.NodejsFunction(this, "getTime", {
       handler: "handler",
-      runtime: lambda.Runtime.NODEJS_14_X,
-      timeout: cdk.Duration.seconds(30),
+      runtime: lambda.Runtime.NODEJS_20_X,
+      timeout: Duration.seconds(30),
       memorySize: 512,
-      entry: "./lambda/time/get.ts",
+      entry: path.join(__dirname, "../lambda/time/get.ts"),
     });
 
-    // Definition of WAF
-    const ipRanges: string[] = scope.node.tryGetContext(
-      "allowedIpAddressRanges"
-    );
+    // アクセスを許可する IP レンジをコンテキストから取得
+    const ipRanges: string[] =
+      scope.node.tryGetContext("allowedIpAddressRanges") || [];
 
-    const wafIPSet = new waf.CfnIPSet(this, `IPSet`, {
+    const wafIPSet = new waf.CfnIPSet(this, "IPSet", {
       name: "BackendWebAclIpSet",
       ipAddressVersion: "IPV4",
       scope: "REGIONAL",
@@ -48,7 +50,6 @@ export class APIStack extends cdk.Stack {
       },
       // https://docs.aws.amazon.com/ja_jp/waf/latest/developerguide/aws-managed-rule-groups-list.html
       rules: [
-        // AWSManagedRulesCommonRuleSet
         {
           priority: 1,
           overrideAction: { none: {} },
@@ -65,7 +66,6 @@ export class APIStack extends cdk.Stack {
             },
           },
         },
-        // AWSManagedRulesKnownBadInputsRuleSet
         {
           priority: 2,
           name: "BackendWebAclIpRuleSet",
@@ -84,7 +84,7 @@ export class APIStack extends cdk.Stack {
       ],
     });
 
-    // Definition of API Gateway
+    // API Gateway を用意し、Cognito 認証 + WAF を適用
     const api = new agw.RestApi(this, "api", {
       deployOptions: {
         stageName: "api",
@@ -95,8 +95,7 @@ export class APIStack extends cdk.Stack {
       },
     });
 
-    // Associate WAF with API Gateway
-    const region = cdk.Stack.of(this).region;
+    const region = Stack.of(this).region;
     const restApiId = api.restApiId;
     const stageName = api.deploymentStage.stageName;
     new waf.CfnWebACLAssociation(this, "apply-waf-apigw", {
@@ -109,6 +108,11 @@ export class APIStack extends cdk.Stack {
     userinfo.addMethod("GET", new agw.LambdaIntegration(getTimeFunction), {
       authorizer: authorizer,
       authorizationType: agw.AuthorizationType.COGNITO,
+    });
+
+    new CfnOutput(this, "apiEndpoint", {
+      value: api.url,
+      description: "API Gateway invoke URL (ステージ付き)",
     });
   }
 }

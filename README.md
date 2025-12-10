@@ -1,109 +1,110 @@
-# React SPA App with Serverless Backend and Congito Auth Demo
+# React SPA + Serverless Backend + Cognito 認証デモ
 
-## Overview
+## 概要
 
-This sample shows how to make a SPA application with serverless backend by AWS Cloud Development Kit (CDK). You can also see from this sample how to control access to API with Amazon Cognito and attach WAF to API Gateway and CloudFront.
-
-Screenshots of this demo are shown below.
+AWS CDK v2 でバックエンドを、React + AWS Amplify でフロントエンドを構築するサンプルです。Cognito の認証情報を用いて API Gateway/Lambda にアクセスし、WAF を API と CloudFront の両方にアタッチする流れを確認できます。
 
 ![screen-cognito](imgs/screen-cognito.png)
 ![screen-home](imgs/screen-home.png)
 
-## Architecture
+## アーキテクチャ
 
-There are three cdk stacks, which correspond to each row in the architecure below.
+それぞれの CDK スタックで役割を分けています。
 
-- AuthStack
+- AuthStack  
   - Amazon Cognito
-- APIStack
+- APIStack  
   - Amazon API Gateway, AWS WAF, AWS Lambda
-- FrontendStack
+- FrontendStack  
   - Amazon CloudFront, AWS WAF, Amazon S3
 
 ![Architecture](imgs/architecture.png)
 
-## Directory Structures
+## ディレクトリ構成
 
 ```sh
 .
-├── backend          # CDK scripts for backend resources
+├── backend          # バックエンド (API/Cognito) の CDK スクリプト
 └── frontend
-    ├── provisioning # CDK scripts for frontend resources
-    └── web          # React scripts
+    ├── provisioning # フロントエンド (CloudFront/S3) の CDK スクリプト
+    └── web          # React + Amplify アプリ
 ```
 
-## Main Libraries
+## 主なライブラリ
 
-- @aws-amplify/ui-components
-- @aws-amplify/ui-react
-- aws-amplify
-- aws-cdk
-- aws-lambda
-- jest
-- react
-- react-scripts
-- ts-node
+- aws-cdk-lib / constructs
+- aws-amplify / @aws-amplify/ui-react
+- react / react-scripts
 - typescript
+- jest / ts-jest
 
-## Prerequisites
+## 前提
 
-- npm
-- cdk
-- configuration of aws profile
+- npm / Node.js（CDK v2 と React 18 が動作するバージョンを推奨）
+- AWS CLI の設定（`aws configure` 済みであること）
+- CDK CLI v2 (`npm i -g aws-cdk`) が利用可能であること
 
-## Getting started
+## セットアップ手順
 
-### 1. Clone the repository
+### 1. リポジトリ取得
 
-- Run `git clone` command to download the source code
-
-### 2. Deploy backend resources
-
-- Run `npm install` command in the [backend](backend) directory.
-- Run `cdk deploy --all` to deploy backend resouces.
-  - You can deploy each stack individually like `cdk deploy AuthStack`.
-- When resouces are successfully deployed, outputs such as APIStack.CognitoUserPoolId will be shown in the terminal. These values will be used to deploy frontend resouces.
-
-```sh
-Outputs:
-APIStack.CognitoUserPoolId = xxx
-APIStack.CognitoUserPoolWebClientId = xxx
-APIStack.ExportsOutputFnGetAttUserPoolxxx = xxx
-...
-Outputs:
-AuthStack.apiEndpointxxx = xxx
+```bash
+git clone <this-repo>
 ```
 
-### 3. Deploy frontend resources
+### 2. バックエンドをデプロイ
 
-#### 3.1 Build React app
+1. `backend` ディレクトリで依存関係をインストール  
+   `npm install`
+2. CDK でスタックをデプロイ  
+   `cdk deploy --all`
+3. デプロイ完了後に出力される以下をメモ  
+   - `CognitoUserPoolId`
+   - `CognitoUserPoolWebClientId`
+   - API エンドポイント
 
-- Run `npm install` command in the [frontend/web](frontend/web) directory.
-- Update `frontend/web/src/App.tsx` to use the previous outputs.
-  - userPoolId
-  - userPoolWebClientId
-  - apiEndpoint
-- Run `npm run build` in the same directory to build react scripts.
+### 3. フロントエンドをビルド & デプロイ
 
-#### 3.2 Deploy frontend resources
+#### 3.1 React アプリのビルド
 
-- Move to [frontend/provisioning](frontend/provisioning) directory and run `npm install` command.
-- Run `cdk deploy --all` to deploy frontend resouces.
-- When resouces are successfully deployed, FrontendStack.endpoint will be displayed in the terminal. You will access the app hosted on cloudfront/s3 by this url.
+1. `frontend/web` で依存関係をインストール  
+   `npm install`
+2. 環境変数を設定  
+   - `cp .env.template .env.local`  
+   - `.env.local` の `REACT_APP_COGNITO_USER_POOL_ID` / `REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID` / `REACT_APP_API_ENDPOINT` を手順 2 で得た値に置き換え（API は `apiEndpoint` 出力をそのまま利用可。末尾スラッシュはビルド時に自動除去）
+3. ビルド  
+   `npm run build`
+
+#### 3.2 CloudFront/S3 へデプロイ
+
+1. `frontend/provisioning` で依存関係をインストール  
+   `npm install`
+2. CDK デプロイ  
+   `cdk deploy --all`
+3. `FrontendStack.endpoint` に表示された CloudFront の URL でアプリにアクセス
+
+### 4. Cognito ユーザーの作成
+
+サインインには事前にユーザーを作成しておく必要があります。AWS マネジメントコンソールまたは AWS CLI からユーザーを登録してください。
+
+## 自動デプロイ・削除スクリプト
+
+ルート直下の `scripts/deploy.sh` / `scripts/destroy.sh` で一連の作業を自動化できます（`--profile` / `--region` は省略可）。
 
 ```sh
-Outputs:
-FrontendStack.endpoint = xxx.cloudfront.net
+# デプロイ: backend → 出力で .env.local を自動生成 → frontend build → frontend/provisioning デプロイ
+./scripts/deploy.sh --profile admin --region ap-northeast-1
+
+# 削除
+./scripts/destroy.sh --profile admin --region ap-northeast-1
 ```
 
-### 4. Create Cognito user
+※ AWS CLI / jq が必要です。CloudFront の作成/削除に時間がかかることがあります。タイムアウトにかかる場合は `AWS_CLI_READ_TIMEOUT` などを必要に応じて環境変数で調整してください。
 
-- In order to sign in the app, you need to create a new cognito user. You can create a user by AWS Management Console or AWS CLI.
+## セキュリティ
 
-## Security
+セキュリティに関する連絡先などは [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) を参照してください。
 
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
+## ライセンス
 
-## License
-
-This library is licensed under the MIT-0 License. See the LICENSE file.
+MIT-0 License。詳細は LICENSE を参照してください。

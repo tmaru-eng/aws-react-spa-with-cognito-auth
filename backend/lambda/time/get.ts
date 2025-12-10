@@ -4,6 +4,7 @@ import {
   APIGatewayProxyResult,
 } from "aws-lambda";
 
+// 見やすい文字列へ変換（例: 2024/01/01 12:34）
 const formatDate = (date: Date) => {
   const dt = new Date(date);
   const yyyy = dt.getFullYear();
@@ -21,6 +22,7 @@ exports.handler = async (
   let status = 200;
   let response = {};
   try {
+    // 単純に現在時刻を返すだけのサンプル
     response = { cur_date: formatDate(new Date()) };
   } catch (e) {
     console.log(e);
