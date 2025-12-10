@@ -14,9 +14,21 @@ import {
 import { Construct } from "constructs";
 import * as path from "path";
 
+interface FrontendStackProps extends StackProps {
+  namePrefix: string;
+  webAclParameterName: string;
+  webAclRegion: string;
+}
+
 export class FrontendStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
+
+    const safePrefix = props.namePrefix
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-");
+    const bucketBase = `${safePrefix}-frontend-bucket-${this.account}-${this.region}`;
+    const bucketName = bucketBase.substring(0, 63).replace(/-+$/, "");
 
     const websiteBucket = new s3.Bucket(this, "WebsiteBucket", {
       websiteErrorDocument: "index.html",
@@ -26,6 +38,7 @@ export class FrontendStack extends Stack {
       enforceSSL: true,
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
+      bucketName,
     });
 
     // CloudFront からのみ S3 にアクセスさせるための OAI
@@ -37,8 +50,8 @@ export class FrontendStack extends Stack {
 
     // us-east-1 にある WAF ARN を SSM から参照
     const webAclRef = new SsmParameterReader(this, "WebAclArnParameterReader", {
-      parameterName: "WebAclArnParameter",
-      region: "us-east-1",
+      parameterName: props.webAclParameterName,
+      region: props.webAclRegion,
     }).stringValue;
 
     // SPA なので 404 を index.html に差し替え
@@ -48,6 +61,7 @@ export class FrontendStack extends Stack {
       {
         webAclId: webAclRef,
         defaultRootObject: "index.html",
+        comment: `${props.namePrefix}-frontend-distribution`,
         defaultBehavior: {
           origin: origins.S3BucketOrigin.withOriginAccessIdentity(
             websiteBucket,

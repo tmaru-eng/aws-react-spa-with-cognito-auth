@@ -22,13 +22,18 @@ export class APIStack extends Stack {
     });
 
     // Lambda（Node.js 20 + ESBuild バンドル）で現在時刻を返す
-    const getTimeFunction = new lambdaNodejs.NodejsFunction(this, "getTime", {
-      handler: "handler",
-      runtime: lambda.Runtime.NODEJS_20_X,
-      timeout: Duration.seconds(30),
-      memorySize: 512,
-      entry: path.join(__dirname, "../lambda/time/get.ts"),
-    });
+    const getTimeFunction = new lambdaNodejs.NodejsFunction(
+      this,
+      "getTime",
+      {
+        handler: "handler",
+        runtime: lambda.Runtime.NODEJS_20_X,
+        timeout: Duration.seconds(30),
+        memorySize: 512,
+        entry: path.join(__dirname, "../lambda/time/get.ts"),
+        functionName: `${props.namePrefix}-getTime`,
+      }
+    );
 
     // アクセスを許可する IP レンジをコンテキストから取得
     const ipRanges = props.allowedIpRanges;
@@ -41,6 +46,7 @@ export class APIStack extends Stack {
     });
 
     const apiWaf = new waf.CfnWebACL(this, "waf", {
+      name: `${props.namePrefix}-BackendWAF`,
       defaultAction: { block: {} },
       scope: "REGIONAL",
       visibilityConfig: {
@@ -86,6 +92,7 @@ export class APIStack extends Stack {
 
     // API Gateway を用意し、Cognito 認証 + WAF を適用
     const api = new agw.RestApi(this, "api", {
+      restApiName: `${props.namePrefix}-api`,
       deployOptions: {
         stageName: "api",
       },

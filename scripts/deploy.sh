@@ -7,6 +7,7 @@ PROFILE_ARG=""
 REGION_ARG=""
 REGION_VALUE=""
 ENV_FILE="../frontend/web/.env.local"
+STACK_PREFIX=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -47,6 +48,9 @@ if [[ -z "$REGION_VALUE" ]]; then
   REGION_ARG="--region $REGION_VALUE"
 fi
 
+# スタック名のプレフィクス
+STACK_PREFIX="${SYSTEM_NAME:-demo}-${STAGE:-dev}"
+
 echo "Using env file: $ENV_FILE"
 echo "Using region: $REGION_VALUE"
 
@@ -62,8 +66,11 @@ fi
 cdk deploy --all --require-approval never $PROFILE_ARG $REGION_ARG
 
 echo "== Fetching outputs =="
-AUTH_STACK_JSON=$(aws cloudformation describe-stacks --stack-name AuthStack $PROFILE_ARG $REGION_ARG)
-API_STACK_JSON=$(aws cloudformation describe-stacks --stack-name APIStack $PROFILE_ARG $REGION_ARG)
+AUTH_STACK_NAME="${STACK_PREFIX}-AuthStack"
+API_STACK_NAME="${STACK_PREFIX}-APIStack"
+
+AUTH_STACK_JSON=$(aws cloudformation describe-stacks --stack-name "$AUTH_STACK_NAME" $PROFILE_ARG $REGION_ARG)
+API_STACK_JSON=$(aws cloudformation describe-stacks --stack-name "$API_STACK_NAME" $PROFILE_ARG $REGION_ARG)
 
 USER_POOL_ID=$(echo "$AUTH_STACK_JSON" | jq -r '.Stacks[0].Outputs[] | select(.OutputKey=="CognitoUserPoolId") | .OutputValue')
 USER_POOL_CLIENT_ID=$(echo "$AUTH_STACK_JSON" | jq -r '.Stacks[0].Outputs[] | select(.OutputKey=="CognitoUserPoolWebClientId") | .OutputValue')
