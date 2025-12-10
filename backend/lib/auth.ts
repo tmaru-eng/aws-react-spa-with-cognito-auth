@@ -7,6 +7,7 @@ import {
 } from "aws-cdk-lib";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
+import { backendConfig } from "./config";
 
 export class AuthStack extends Stack {
   public readonly userPool: cognito.UserPool;
@@ -23,11 +24,13 @@ export class AuthStack extends Stack {
         otp: true,
         sms: false,
       },
+      selfSignUpEnabled: backendConfig.selfSignUpEnabled,
+      userPoolName: `${backendConfig.systemName}-${backendConfig.stage}-UserPool`,
     });
 
     // SPA から利用するクライアントを作成
     const client = userPool.addClient("WebClient", {
-      userPoolClientName: "webClient",
+      userPoolClientName: `${backendConfig.systemName}-${backendConfig.stage}-WebClient`,
       idTokenValidity: Duration.days(1),
       accessTokenValidity: Duration.days(1),
       authFlows: {

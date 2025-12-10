@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from "aws-cdk-lib";
+import { Duration, Stack, StackProps, CfnOutput } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -6,10 +6,11 @@ import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as waf from "aws-cdk-lib/aws-wafv2";
 import * as agw from "aws-cdk-lib/aws-apigateway";
 import * as path from "path";
-import { CfnOutput } from "aws-cdk-lib";
 
 interface APIStackProps extends StackProps {
   userPool: cognito.UserPool;
+  namePrefix: string;
+  allowedIpRanges: string[];
 }
 
 export class APIStack extends Stack {
@@ -30,11 +31,10 @@ export class APIStack extends Stack {
     });
 
     // アクセスを許可する IP レンジをコンテキストから取得
-    const ipRanges: string[] =
-      scope.node.tryGetContext("allowedIpAddressRanges") || [];
+    const ipRanges = props.allowedIpRanges;
 
     const wafIPSet = new waf.CfnIPSet(this, "IPSet", {
-      name: "BackendWebAclIpSet",
+      name: `${props.namePrefix}-BackendWebAclIpSet`,
       ipAddressVersion: "IPV4",
       scope: "REGIONAL",
       addresses: ipRanges,

@@ -1,24 +1,27 @@
-import { Stack, StackProps, aws_ssm as ssm, aws_wafv2 as waf } from "aws-cdk-lib";
+import {
+  Stack,
+  StackProps,
+  aws_ssm as ssm,
+  aws_wafv2 as waf,
+} from "aws-cdk-lib";
 import { Construct } from "constructs";
+import { frontendConfig } from "./config";
 
 export class WebAclStack extends Stack {
   constructor(scope: Construct, id: string, props: StackProps) {
     super(scope, id, props);
-    const ipRanges: string[] =
-      scope.node.tryGetContext("allowedIpAddressRanges") || [];
-
-    const ipRangesV6: string[] =
-      scope.node.tryGetContext("allowedIpAddressRangesV6") || [];
+    const ipRanges = frontendConfig.allowedIpRanges;
+    const ipRangesV6 = frontendConfig.allowedIpRangesV6;
 
     const wafIPSet4 = new waf.CfnIPSet(this, "IPSet4", {
-      name: "FrontendWebAclIpSet4",
+      name: `${frontendConfig.systemName}-${frontendConfig.stage}-FrontendWebAclIpSet4`,
       ipAddressVersion: "IPV4",
       scope: "CLOUDFRONT",
       addresses: ipRanges,
     });
 
     const wafIPSet6 = new waf.CfnIPSet(this, "IPSet6", {
-      name: "FrontendWebAclIpSet6",
+      name: `${frontendConfig.systemName}-${frontendConfig.stage}-FrontendWebAclIpSet6`,
       ipAddressVersion: "IPV6",
       scope: "CLOUDFRONT",
       addresses: ipRangesV6,
@@ -52,7 +55,7 @@ export class WebAclStack extends Stack {
         },
         {
           priority: 2,
-          name: "FrontendWebAclIpRuleSet",
+          name: `${frontendConfig.systemName}-${frontendConfig.stage}-FrontendWebAclIpRuleSet`,
           action: { allow: {} },
           visibilityConfig: {
             sampledRequestsEnabled: true,
@@ -67,7 +70,7 @@ export class WebAclStack extends Stack {
         },
         {
           priority: 3,
-          name: "FrontendWebAclIpV6RuleSet",
+          name: `${frontendConfig.systemName}-${frontendConfig.stage}-FrontendWebAclIpV6RuleSet`,
           action: { allow: {} },
           visibilityConfig: {
             sampledRequestsEnabled: true,

@@ -27,6 +27,13 @@ done
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# ルートの .env を読み込んで CDK/CLI へ共有
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  echo "Loading shared environment from .env"
+  # shellcheck disable=SC2046
+  export $(grep -v '^#' "$ROOT_DIR/.env" | xargs) || true
+fi
+
 if [[ -z "$REGION_VALUE" ]]; then
   REGION_VALUE="${AWS_REGION:-${AWS_DEFAULT_REGION:-ap-northeast-1}}"
   REGION_ARG="--region $REGION_VALUE"

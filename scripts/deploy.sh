@@ -34,9 +34,16 @@ done
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
+# ルートの .env を読み込んで共通設定を環境変数へ
+if [[ -f "$ROOT_DIR/.env" ]]; then
+  echo "Loading shared environment from .env"
+  # shellcheck disable=SC2046
+  export $(grep -v '^#' "$ROOT_DIR/.env" | xargs) || true
+fi
+
 # リージョンは引数優先、なければ環境変数を参照、無ければ ap-northeast-1 を既定とする
 if [[ -z "$REGION_VALUE" ]]; then
-  REGION_VALUE="${AWS_REGION:-${AWS_DEFAULT_REGION:-ap-northeast-1}}"
+  REGION_VALUE="${BACKEND_REGION:-${AWS_REGION:-${AWS_DEFAULT_REGION:-ap-northeast-1}}}"
   REGION_ARG="--region $REGION_VALUE"
 fi
 
@@ -73,6 +80,9 @@ REACT_APP_COGNITO_REGION=${REGION_VALUE}
 REACT_APP_COGNITO_USER_POOL_ID=${USER_POOL_ID}
 REACT_APP_COGNITO_USER_POOL_WEB_CLIENT_ID=${USER_POOL_CLIENT_ID}
 REACT_APP_API_ENDPOINT=${API_ENDPOINT}
+REACT_APP_ENABLE_SELF_SIGNUP=${SELF_SIGN_UP_ENABLED:-false}
+REACT_APP_STAGE=${STAGE:-dev}
+REACT_APP_SYSTEM_NAME=${SYSTEM_NAME:-demo}
 EOF
 echo "Updated $ENV_FILE"
 
