@@ -1,10 +1,17 @@
-import { Duration, Stack, StackProps, CfnOutput } from "aws-cdk-lib";
+import {
+  Duration,
+  Stack,
+  StackProps,
+  CfnOutput,
+  RemovalPolicy,
+} from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as waf from "aws-cdk-lib/aws-wafv2";
 import * as agw from "aws-cdk-lib/aws-apigateway";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as path from "path";
 
 interface APIStackProps extends StackProps {
@@ -34,6 +41,34 @@ export class APIStack extends Stack {
         functionName: `${props.namePrefix}-getTime`,
       }
     );
+
+    // CRUD データ用の DynamoDB テーブル
+    const itemsTable = new dynamodb.Table(this, "ItemsTable", {
+      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: props.namePrefix.includes("prod")
+        ? RemovalPolicy.RETAIN
+        : RemovalPolicy.DESTROY,
+      tableName: `${props.namePrefix}-ItemsTable`,
+    });
+
+    // React Admin 用の CRUD Lambda
+    const itemsFunction = new lambdaNodejs.NodejsFunction(
+      this,
+      "itemsHandler",
+      {
+        handler: "handler",
+        runtime: lambda.Runtime.NODEJS_20_X,
+        timeout: Duration.seconds(30),
+        memorySize: 512,
+        entry: path.join(__dirname, "../lambda/items/handler.ts"),
+        functionName: `${props.namePrefix}-items`,
+        environment: {
+          TABLE_NAME: itemsTable.tableName,
+        },
+      }
+    );
+    itemsTable.grantReadWriteData(itemsFunction);
 
     // アクセスを許可する IP レンジをコンテキストから取得
     const ipRanges = props.allowedIpRanges;
@@ -114,6 +149,31 @@ export class APIStack extends Stack {
     const userinfo = api.root.addResource("time");
     userinfo.addMethod("GET", new agw.LambdaIntegration(getTimeFunction), {
       authorizer: authorizer,
+      authorizationType: agw.AuthorizationType.COGNITO,
+    });
+
+    // CRUD: /items
+    const items = api.root.addResource("items");
+    const itemById = items.addResource("{id}");
+
+    items.addMethod("GET", new agw.LambdaIntegration(itemsFunction), {
+      authorizer,
+      authorizationType: agw.AuthorizationType.COGNITO,
+    });
+    items.addMethod("POST", new agw.LambdaIntegration(itemsFunction), {
+      authorizer,
+      authorizationType: agw.AuthorizationType.COGNITO,
+    });
+    itemById.addMethod("GET", new agw.LambdaIntegration(itemsFunction), {
+      authorizer,
+      authorizationType: agw.AuthorizationType.COGNITO,
+    });
+    itemById.addMethod("PUT", new agw.LambdaIntegration(itemsFunction), {
+      authorizer,
+      authorizationType: agw.AuthorizationType.COGNITO,
+    });
+    itemById.addMethod("DELETE", new agw.LambdaIntegration(itemsFunction), {
+      authorizer,
       authorizationType: agw.AuthorizationType.COGNITO,
     });
 

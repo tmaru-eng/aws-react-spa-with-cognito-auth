@@ -4,45 +4,51 @@ import {
   Resource,
   ListGuesser,
   ShowGuesser,
-  EditGuesser,
+  Edit,
+  SimpleForm,
+  TextInput,
+  NumberInput,
+  Create,
 } from "react-admin";
-import fakeRestDataProvider from "ra-data-fakerest";
 import { CssBaseline } from "@mui/material";
+import { adminDataProvider } from "./adminDataProvider";
 
-// 簡易デモ用のインメモリデータ（React Admin のチュートリアルに近い形）
-const dataProvider = fakeRestDataProvider({
-  posts: [
-    { id: 1, title: "React Admin 入門", views: 245, published_at: "2024-12-01" },
-    { id: 2, title: "Amplify と Cognito", views: 180, published_at: "2024-11-21" },
-  ],
-  users: [
-    { id: 1, name: "Yamada Taro", email: "taro@example.com" },
-    { id: 2, name: "Suzuki Hanako", email: "hanako@example.com" },
-  ],
-});
+const ItemCreate = () => (
+  <Create>
+    <SimpleForm>
+      <TextInput source="title" label="タイトル" required />
+      <NumberInput source="views" label="閲覧数" />
+      <TextInput source="published_at" label="公開日 (YYYY-MM-DD)" />
+    </SimpleForm>
+  </Create>
+);
+
+const ItemEdit = () => (
+  <Edit>
+    <SimpleForm>
+      <TextInput source="title" label="タイトル" required />
+      <NumberInput source="views" label="閲覧数" />
+      <TextInput source="published_at" label="公開日 (YYYY-MM-DD)" />
+    </SimpleForm>
+  </Edit>
+);
 
 const AdminDemo: React.FC = () => (
   <>
     <CssBaseline />
     <Admin
-      dataProvider={dataProvider}
+      dataProvider={adminDataProvider}
       basename="/admin-demo"
       disableTelemetry
       title="React Admin デモ"
     >
       <Resource
-        name="posts"
+        name="items"
         list={ListGuesser}
         show={ShowGuesser}
-        edit={EditGuesser}
+        edit={ItemEdit}
+        create={ItemCreate}
         recordRepresentation="title"
-      />
-      <Resource
-        name="users"
-        list={ListGuesser}
-        edit={EditGuesser}
-        show={ShowGuesser}
-        recordRepresentation="name"
       />
     </Admin>
   </>
