@@ -9,6 +9,7 @@ import { translations } from "@aws-amplify/ui";
 import "@aws-amplify/ui-react/styles.css";
 import { getTime } from "./api";
 import { apiEndpoint, cognitoConfig, enableSelfSignUp } from "./config";
+import AdminDemo from "./AdminDemo";
 
 // Amplify UI の文言を日本語に寄せる
 I18n.putVocabularies(translations);
@@ -46,6 +47,7 @@ type SignedInViewProps = {
 const SignedInView: React.FC<SignedInViewProps> = ({ username, signOut }) => {
   const [time, setTime] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
+  const [showAdmin, setShowAdmin] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchTime = async () => {
@@ -89,10 +91,25 @@ const SignedInView: React.FC<SignedInViewProps> = ({ username, signOut }) => {
 
         {errorMessage ? <Text className="App-error">{errorMessage}</Text> : null}
 
-        <button className="App-button" onClick={signOut}>
-          サインアウト
-        </button>
+        <div className="App-actions">
+          <button
+            className="App-button"
+            onClick={() => setShowAdmin((prev) => !prev)}
+          >
+            {showAdmin ? "管理画面デモを閉じる" : "管理画面デモを開く"}
+          </button>
+          <button className="App-button" onClick={signOut}>
+            サインアウト
+          </button>
+        </div>
       </header>
+
+      {showAdmin ? (
+        <div className="App-admin">
+          <Heading level={3}>React Admin デモ（モックデータ）</Heading>
+          <AdminDemo />
+        </div>
+      ) : null}
     </div>
   );
 };
