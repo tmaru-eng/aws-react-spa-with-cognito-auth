@@ -5,91 +5,90 @@ import { apiEndpoint } from "./config";
 const getAuthHeader = async () => {
   const session = await fetchAuthSession();
   const idToken = session.tokens?.idToken?.toString();
-  if (!idToken) {
-    throw new Error("IDトークンが取得できませんでした。");
-  }
+  if (!idToken) throw new Error("IDトークンが取得できませんでした。");
   return { Authorization: `Bearer ${idToken}` };
 };
 
-const baseUrl = apiEndpoint?.replace(/\/$/, "");
-if (!baseUrl) {
-  console.warn("API エンドポイントが設定されていません。");
-}
+const baseUrl = apiEndpoint;
 
 const handleResponse = async (res: Response) => {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message =
-      json?.message || `API エラー (status: ${res.status}, ${res.statusText})`;
+    const message = (json as any)?.message || `API error: ${res.status}`;
     throw new Error(message);
   }
   return json;
 };
 
 export const adminDataProvider: DataProvider = {
-  getList: async () => {
+  getList: async (resource) => {
     if (!baseUrl) throw new Error("API エンドポイントが未設定です。");
     const headers = await getAuthHeader();
-    const res = await fetch(`${baseUrl}/items`, { headers });
+    const res = await fetch(`${baseUrl}/${resource}`, { headers });
     const json = await handleResponse(res);
-    const items = json.data ?? [];
-    return { data: items, total: json.total ?? items.length };
+    const items = (json as any).data ?? [];
+    return { data: items, total: (json as any).total ?? items.length };
   },
-  getOne: async (_resource, params) => {
+  getOne: async (resource, params) => {
     if (!baseUrl) throw new Error("API エンドポイントが未設定です。");
     const headers = await getAuthHeader();
-    const res = await fetch(`${baseUrl}/items/${params.id}`, { headers });
+    const res = await fetch(`${baseUrl}/${resource}/${params.id}`, { headers });
     const json = await handleResponse(res);
-    return { data: json.data };
+    return { data: (json as any).data };
   },
-  create: async (_resource, params) => {
+  create: async (resource, params) => {
     if (!baseUrl) throw new Error("API エンドポイントが未設定です。");
     const headers = await getAuthHeader();
-    const res = await fetch(`${baseUrl}/items`, {
+    const res = await fetch(`${baseUrl}/${resource}`, {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify(params.data),
     });
     const json = await handleResponse(res);
-    return { data: json.data };
+    return { data: (json as any).data };
   },
-  update: async (_resource, params) => {
+  update: async (resource, params) => {
     if (!baseUrl) throw new Error("API エンドポイントが未設定です。");
     const headers = await getAuthHeader();
-    const res = await fetch(`${baseUrl}/items/${params.id}`, {
+    const res = await fetch(`${baseUrl}/${resource}/${params.id}`, {
       method: "PUT",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify(params.data),
     });
     const json = await handleResponse(res);
-    return { data: json.data };
+    return { data: (json as any).data };
   },
-  delete: async (_resource, params) => {
+  delete: async (resource, params) => {
     if (!baseUrl) throw new Error("API エンドポイントが未設定です。");
     const headers = await getAuthHeader();
-    const res = await fetch(`${baseUrl}/items/${params.id}`, {
+    const res = await fetch(`${baseUrl}/${resource}/${params.id}`, {
       method: "DELETE",
       headers,
     });
     const json = await handleResponse(res);
-    return { data: json.data };
+    return { data: (json as any).data };
   },
-  // 未使用のメソッドは簡易実装
-  getMany: async (_resource, params) => {
-    const list = await (await adminDataProvider.getList("", {} as any)).data;
-    const filtered = list.filter((item: any) => params.ids.includes(item.id));
+  getMany: async (resource, params) => {
+    const list = await adminDataProvider.getList(resource, {} as any);
+    const filtered = list.data.filter((item: any) => params.ids.includes(item.id));
     return { data: filtered };
   },
   getManyReference: async () => ({ data: [], total: 0 }),
-  deleteMany: async (_resource, params) => {
+  deleteMany: async (resource, params) => {
     const results = await Promise.all(
-      params.ids.map((id) => adminDataProvider.delete("", { id }))
+      params.ids.map((id) => adminDataProvider.delete(resource, { id }))
     );
     return { data: results.map((r) => (r as any).data.id) };
   },
-  updateMany: async (_resource, params) => {
+  updateMany: async (resource, params) => {
     const results = await Promise.all(
-      params.ids.map((id) => adminDataProvider.update("", { id, data: params.data }))
+      params.ids.map((id) =>
+        adminDataProvider.update(resource, {
+          id,
+          data: params.data,
+          previousData: params.data,
+        })
+      )
     );
     return { data: results.map((r) => (r as any).data.id) };
   },

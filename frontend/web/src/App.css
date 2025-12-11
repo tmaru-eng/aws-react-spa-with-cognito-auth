@@ -1,5 +1,8 @@
 .App {
   text-align: center;
+  background: #f7f8fb;
+  color: #1b1d2a;
+  min-height: 100vh;
 }
 
 .App-logo {
@@ -14,14 +17,15 @@
 }
 
 .App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+  background-color: #f7f8fb;
+  min-height: auto;
+  padding: 32px 16px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   font-size: calc(10px + 2vmin);
-  color: white;
+  color: #1b1d2a;
 }
 
 .App-link {
@@ -37,19 +41,19 @@
 }
 
 .App-card {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #ffffff;
+  border: 1px solid #e5e7f0;
   border-radius: 12px;
   padding: 16px 20px;
   margin: 10px 0;
   width: 320px;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
 }
 
 .App-label {
   display: block;
   font-size: 14px;
-  color: #cdd0ff;
+  color: #4a4f67;
   margin-bottom: 4px;
 }
 
@@ -78,6 +82,64 @@
 .App-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.AdminRoot {
+  min-height: 100vh;
+  background: #f7f8fb;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.AdminBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.AdminTitle {
+  margin: 0;
+  color: #1b1d2a;
+}
+
+.AdminActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.AdminButton {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #d0d4e4;
+  background: #ffffff;
+  color: #1b1d2a;
+  cursor: pointer;
+}
+
+.AdminButton:hover {
+  background: #f0f2f8;
+}
+
+.AdminBody {
+  background: #ffffff;
+  border: 1px solid #e5e7f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  min-height: calc(100vh - 120px);
+}
+
+.AdminBody .MuiPaper-root {
+  background: #ffffff;
+  color: #1b1d2a;
+}
+
+.AdminBody .MuiTypography-root,
+.AdminBody .MuiTableCell-root {
+  color: #1b1d2a;
 }
 
 @keyframes App-logo-spin {

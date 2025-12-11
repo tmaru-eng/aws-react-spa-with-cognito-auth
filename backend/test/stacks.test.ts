@@ -36,8 +36,6 @@ test("APIStack が Cognito 認証付き API を作成する", () => {
   template.hasResourceProperties("AWS::WAFv2::WebACL", {
     Scope: "REGIONAL",
   });
-  template.hasResourceProperties("AWS::DynamoDB::Table", {
-    KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
-  });
-  template.resourceCountIs("AWS::Lambda::Function", 2); // getTime + items
+  template.resourceCountIs("AWS::DynamoDB::Table", 3); // posts, users, comments
+  template.resourceCountIs("AWS::Lambda::Function", 2); // getTime + demo CRUD
 });

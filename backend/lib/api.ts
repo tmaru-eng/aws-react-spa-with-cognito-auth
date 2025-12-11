@@ -42,33 +42,55 @@ export class APIStack extends Stack {
       }
     );
 
-    // CRUD データ用の DynamoDB テーブル
-    const itemsTable = new dynamodb.Table(this, "ItemsTable", {
+    // React Admin demo 用 DynamoDB テーブル（posts/users/comments）
+    const postsTable = new dynamodb.Table(this, "PostsTable", {
       partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: props.namePrefix.includes("prod")
         ? RemovalPolicy.RETAIN
         : RemovalPolicy.DESTROY,
-      tableName: `${props.namePrefix}-ItemsTable`,
+      tableName: `${props.namePrefix}-PostsTable`,
     });
 
-    // React Admin 用の CRUD Lambda
-    const itemsFunction = new lambdaNodejs.NodejsFunction(
+    const usersTable = new dynamodb.Table(this, "UsersTable", {
+      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: props.namePrefix.includes("prod")
+        ? RemovalPolicy.RETAIN
+        : RemovalPolicy.DESTROY,
+      tableName: `${props.namePrefix}-UsersTable`,
+    });
+
+    const commentsTable = new dynamodb.Table(this, "CommentsTable", {
+      partitionKey: { name: "id", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: props.namePrefix.includes("prod")
+        ? RemovalPolicy.RETAIN
+        : RemovalPolicy.DESTROY,
+      tableName: `${props.namePrefix}-CommentsTable`,
+    });
+
+    // React Admin 用の CRUD Lambda（posts/users/comments を1本で処理）
+    const demoFunction = new lambdaNodejs.NodejsFunction(
       this,
-      "itemsHandler",
+      "demoHandler",
       {
         handler: "handler",
         runtime: lambda.Runtime.NODEJS_20_X,
         timeout: Duration.seconds(30),
         memorySize: 512,
-        entry: path.join(__dirname, "../lambda/items/handler.ts"),
-        functionName: `${props.namePrefix}-items`,
+        entry: path.join(__dirname, "../lambda/demo/handler.ts"),
+        functionName: `${props.namePrefix}-demo-api`,
         environment: {
-          TABLE_NAME: itemsTable.tableName,
+          POSTS_TABLE: postsTable.tableName,
+          USERS_TABLE: usersTable.tableName,
+          COMMENTS_TABLE: commentsTable.tableName,
         },
       }
     );
-    itemsTable.grantReadWriteData(itemsFunction);
+    postsTable.grantReadWriteData(demoFunction);
+    usersTable.grantReadWriteData(demoFunction);
+    commentsTable.grantReadWriteData(demoFunction);
 
     // アクセスを許可する IP レンジをコンテキストから取得
     const ipRanges = props.allowedIpRanges;
@@ -134,6 +156,16 @@ export class APIStack extends Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: agw.Cors.ALL_ORIGINS,
         allowMethods: agw.Cors.ALL_METHODS,
+        allowHeaders: [
+          "Content-Type",
+          "X-Amz-Date",
+          "Authorization",
+          "X-Api-Key",
+          "X-Amz-Security-Token",
+          "X-Amz-User-Agent",
+          "Accept",
+          "Origin",
+        ],
       },
     });
 
@@ -152,30 +184,77 @@ export class APIStack extends Stack {
       authorizationType: agw.AuthorizationType.COGNITO,
     });
 
-    // CRUD: /items
-    const items = api.root.addResource("items");
-    const itemById = items.addResource("{id}");
+    // CRUD: /posts, /users (comments は posts/{id}/comments もサポート)
+    const resources = ["posts", "users"];
+    resources.forEach((name) => {
+      const res = api.root.addResource(name);
+      const byId = res.addResource("{id}");
 
-    items.addMethod("GET", new agw.LambdaIntegration(itemsFunction), {
-      authorizer,
-      authorizationType: agw.AuthorizationType.COGNITO,
+      res.addMethod("GET", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      res.addMethod("POST", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      byId.addMethod("GET", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      byId.addMethod("PUT", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      byId.addMethod("DELETE", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
     });
-    items.addMethod("POST", new agw.LambdaIntegration(itemsFunction), {
-      authorizer,
-      authorizationType: agw.AuthorizationType.COGNITO,
+
+    // comments: /comments, /comments/{id}
+    const comments = api.root.addResource("comments");
+    const commentById = comments.addResource("{id}");
+
+    [comments, commentById].forEach((res) => {
+      ["GET", "POST", "PUT", "DELETE"].forEach((method) => {
+        // DELETE/PUT only on commentById
+        if ((method === "PUT" || method === "DELETE") && res === comments) return;
+        res.addMethod(method, new agw.LambdaIntegration(demoFunction), {
+          authorizer,
+          authorizationType: agw.AuthorizationType.COGNITO,
+        });
+      });
     });
-    itemById.addMethod("GET", new agw.LambdaIntegration(itemsFunction), {
-      authorizer,
-      authorizationType: agw.AuthorizationType.COGNITO,
-    });
-    itemById.addMethod("PUT", new agw.LambdaIntegration(itemsFunction), {
-      authorizer,
-      authorizationType: agw.AuthorizationType.COGNITO,
-    });
-    itemById.addMethod("DELETE", new agw.LambdaIntegration(itemsFunction), {
-      authorizer,
-      authorizationType: agw.AuthorizationType.COGNITO,
-    });
+
+    // /posts/{id}/comments, /posts/{id}/comments/{commentId}
+    const postsRoot = api.root.getResource("posts");
+    if (postsRoot) {
+      const postById = postsRoot.getResource("{id}") ?? postsRoot.addResource("{id}");
+      const postComments = postById.addResource("comments");
+      const postCommentById = postComments.addResource("{commentId}");
+
+      postComments.addMethod("GET", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      postComments.addMethod("POST", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      postCommentById.addMethod("GET", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      postCommentById.addMethod("PUT", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+      postCommentById.addMethod("DELETE", new agw.LambdaIntegration(demoFunction), {
+        authorizer,
+        authorizationType: agw.AuthorizationType.COGNITO,
+      });
+    }
 
     new CfnOutput(this, "apiEndpoint", {
       value: api.url,
