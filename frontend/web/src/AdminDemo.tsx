@@ -5,7 +5,6 @@ import {
   ListGuesser,
   ShowGuesser,
   EditGuesser,
-  CreateGuesser,
 } from "react-admin";
 import fakeRestDataProvider from "ra-data-fakerest";
 import { CssBaseline } from "@mui/material";
@@ -36,7 +35,6 @@ const AdminDemo: React.FC = () => (
         list={ListGuesser}
         show={ShowGuesser}
         edit={EditGuesser}
-        create={CreateGuesser}
         recordRepresentation="title"
       />
       <Resource
