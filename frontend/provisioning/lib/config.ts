@@ -19,6 +19,7 @@ export const frontendConfig = {
     process.env.CDK_DEFAULT_REGION ||
     "ap-northeast-1",
   frontendWafRegion: process.env.FRONTEND_WAF_REGION || "us-east-1",
+  frontendWafEnabled: toBool(process.env.FRONTEND_WAF_ENABLED, false),
   allowedIpRanges: parseList(process.env.ALLOWED_IP_RANGES, [
     "0.0.0.0/1",
     "128.0.0.0/1",

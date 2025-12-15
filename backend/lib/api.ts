@@ -18,6 +18,7 @@ interface APIStackProps extends StackProps {
   userPool: cognito.UserPool;
   namePrefix: string;
   allowedIpRanges: string[];
+  wafEnabled: boolean;
 }
 
 export class APIStack extends Stack {
@@ -95,57 +96,63 @@ export class APIStack extends Stack {
     // アクセスを許可する IP レンジをコンテキストから取得
     const ipRanges = props.allowedIpRanges;
 
-    const wafIPSet = new waf.CfnIPSet(this, "IPSet", {
-      name: `${props.namePrefix}-BackendWebAclIpSet`,
-      ipAddressVersion: "IPV4",
-      scope: "REGIONAL",
-      addresses: ipRanges,
-    });
+    const wafResources = (() => {
+      if (!props.wafEnabled) return null;
 
-    const apiWaf = new waf.CfnWebACL(this, "waf", {
-      name: `${props.namePrefix}-BackendWAF`,
-      defaultAction: { block: {} },
-      scope: "REGIONAL",
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        sampledRequestsEnabled: true,
-        metricName: "ApiGatewayWAF",
-      },
-      // https://docs.aws.amazon.com/ja_jp/waf/latest/developerguide/aws-managed-rule-groups-list.html
-      rules: [
-        {
-          priority: 1,
-          overrideAction: { none: {} },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: "AWS-AWSManagedRulesCommonRuleSet",
-          },
-          name: "AWSManagedRulesCommonRuleSet",
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: "AWS",
-              name: "AWSManagedRulesCommonRuleSet",
+      const wafIPSet = new waf.CfnIPSet(this, "IPSet", {
+        name: `${props.namePrefix}-BackendWebAclIpSet`,
+        ipAddressVersion: "IPV4",
+        scope: "REGIONAL",
+        addresses: ipRanges,
+      });
+
+      const apiWaf = new waf.CfnWebACL(this, "waf", {
+        name: `${props.namePrefix}-BackendWAF`,
+        defaultAction: { block: {} },
+        scope: "REGIONAL",
+        visibilityConfig: {
+          cloudWatchMetricsEnabled: true,
+          sampledRequestsEnabled: true,
+          metricName: "ApiGatewayWAF",
+        },
+        // https://docs.aws.amazon.com/ja_jp/waf/latest/developerguide/aws-managed-rule-groups-list.html
+        rules: [
+          {
+            priority: 1,
+            overrideAction: { none: {} },
+            visibilityConfig: {
+              sampledRequestsEnabled: true,
+              cloudWatchMetricsEnabled: true,
+              metricName: "AWS-AWSManagedRulesCommonRuleSet",
+            },
+            name: "AWSManagedRulesCommonRuleSet",
+            statement: {
+              managedRuleGroupStatement: {
+                vendorName: "AWS",
+                name: "AWSManagedRulesCommonRuleSet",
+              },
             },
           },
-        },
-        {
-          priority: 2,
-          name: "BackendWebAclIpRuleSet",
-          action: { allow: {} },
-          visibilityConfig: {
-            sampledRequestsEnabled: true,
-            cloudWatchMetricsEnabled: true,
-            metricName: "BackendWebAclIpRuleSet",
-          },
-          statement: {
-            ipSetReferenceStatement: {
-              arn: wafIPSet.attrArn,
+          {
+            priority: 2,
+            name: "BackendWebAclIpRuleSet",
+            action: { allow: {} },
+            visibilityConfig: {
+              sampledRequestsEnabled: true,
+              cloudWatchMetricsEnabled: true,
+              metricName: "BackendWebAclIpRuleSet",
+            },
+            statement: {
+              ipSetReferenceStatement: {
+                arn: wafIPSet.attrArn,
+              },
             },
           },
-        },
-      ],
-    });
+        ],
+      });
+
+      return { apiWaf };
+    })();
 
     // API Gateway を用意し、Cognito 認証 + WAF を適用
     const api = new agw.RestApi(this, "api", {
@@ -169,13 +176,15 @@ export class APIStack extends Stack {
       },
     });
 
-    const region = Stack.of(this).region;
-    const restApiId = api.restApiId;
-    const stageName = api.deploymentStage.stageName;
-    new waf.CfnWebACLAssociation(this, "apply-waf-apigw", {
-      webAclArn: apiWaf.attrArn,
-      resourceArn: `arn:aws:apigateway:${region}::/restapis/${restApiId}/stages/${stageName}`,
-    });
+    if (wafResources) {
+      const region = Stack.of(this).region;
+      const restApiId = api.restApiId;
+      const stageName = api.deploymentStage.stageName;
+      new waf.CfnWebACLAssociation(this, "apply-waf-apigw", {
+        webAclArn: wafResources.apiWaf.attrArn,
+        resourceArn: `arn:aws:apigateway:${region}::/restapis/${restApiId}/stages/${stageName}`,
+      });
+    }
 
     // GET: /time
     const userinfo = api.root.addResource("time");

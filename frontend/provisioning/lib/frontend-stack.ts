@@ -16,6 +16,7 @@ import * as path from "path";
 
 interface FrontendStackProps extends StackProps {
   namePrefix: string;
+  wafEnabled: boolean;
   webAclParameterName: string;
   webAclRegion: string;
 }
@@ -48,18 +49,20 @@ export class FrontendStack extends Stack {
     );
     websiteBucket.grantRead(websiteIdentity);
 
-    // us-east-1 にある WAF ARN を SSM から参照
-    const webAclRef = new SsmParameterReader(this, "WebAclArnParameterReader", {
-      parameterName: props.webAclParameterName,
-      region: props.webAclRegion,
-    }).stringValue;
+    // us-east-1 にある WAF ARN を SSM から参照（WAF 無効なら参照しない）
+    const webAclRef = props.wafEnabled
+      ? new SsmParameterReader(this, "WebAclArnParameterReader", {
+          parameterName: props.webAclParameterName,
+          region: props.webAclRegion,
+        }).stringValue
+      : undefined;
 
     // SPA なので 404 を index.html に差し替え
     const websiteDistribution = new cloudfront.Distribution(
       this,
       "WebsiteDistribution",
       {
-        webAclId: webAclRef,
+        ...(webAclRef ? { webAclId: webAclRef } : {}),
         defaultRootObject: "index.html",
         comment: `${props.namePrefix}-frontend-distribution`,
         defaultBehavior: {

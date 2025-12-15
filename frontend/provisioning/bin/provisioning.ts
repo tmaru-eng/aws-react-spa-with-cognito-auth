@@ -10,21 +10,29 @@ const app = new App();
 const namePrefix = `${frontendConfig.systemName}-${frontendConfig.stage}`;
 const webAclParameterName = `${namePrefix}-WebAclArnParameter`;
 
-const waf = new WebAclStack(app, `${namePrefix}-FrontendWebAclStack`, {
-  env: {
-    region: frontendConfig.frontendWafRegion,
-  },
-  namePrefix,
-  parameterName: webAclParameterName,
-  allowedIpRanges: frontendConfig.allowedIpRanges,
-  allowedIpRangesV6: frontendConfig.allowedIpRangesV6,
-});
+let waf: WebAclStack | undefined;
+if (frontendConfig.frontendWafEnabled) {
+  waf = new WebAclStack(app, `${namePrefix}-FrontendWebAclStack`, {
+    env: {
+      region: frontendConfig.frontendWafRegion,
+    },
+    namePrefix,
+    parameterName: webAclParameterName,
+    allowedIpRanges: frontendConfig.allowedIpRanges,
+    allowedIpRangesV6: frontendConfig.allowedIpRangesV6,
+  });
+}
 
-new FrontendStack(app, `${namePrefix}-FrontendStack`, {
+const frontend = new FrontendStack(app, `${namePrefix}-FrontendStack`, {
   env: {
     region: frontendConfig.frontendRegion,
   },
   namePrefix,
+  wafEnabled: frontendConfig.frontendWafEnabled,
   webAclParameterName,
   webAclRegion: frontendConfig.frontendWafRegion,
-}).addDependency(waf);
+});
+
+if (waf) {
+  frontend.addDependency(waf);
+}

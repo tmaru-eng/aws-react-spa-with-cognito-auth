@@ -26,15 +26,13 @@ test("APIStack が Cognito 認証付き API を作成する", () => {
     userPool,
     namePrefix: "test",
     allowedIpRanges: ["0.0.0.0/0"],
+    wafEnabled: false,
   });
   const template = Template.fromStack(apiStack);
 
   template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
   template.hasResourceProperties("AWS::ApiGateway::Authorizer", {
     Type: "COGNITO_USER_POOLS",
-  });
-  template.hasResourceProperties("AWS::WAFv2::WebACL", {
-    Scope: "REGIONAL",
   });
   template.resourceCountIs("AWS::DynamoDB::Table", 3); // posts, users, comments
   template.resourceCountIs("AWS::Lambda::Function", 2); // getTime + demo CRUD

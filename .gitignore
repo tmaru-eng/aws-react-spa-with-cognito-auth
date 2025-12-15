@@ -1,1 +1,4 @@
 .env
+node_modules/
+build/
+frontend/web_backup/

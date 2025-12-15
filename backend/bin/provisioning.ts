@@ -20,4 +20,5 @@ new APIStack(app, `${namePrefix}-APIStack`, {
   env,
   namePrefix,
   allowedIpRanges: backendConfig.allowedIpRanges,
+  wafEnabled: backendConfig.backendWafEnabled,
 });
